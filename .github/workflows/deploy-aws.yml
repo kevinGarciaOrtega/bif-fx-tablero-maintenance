@@ -43,14 +43,26 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Get AWS account id
+        id: aws-account
+        run: echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to AWS Lambda
+        env:
+          AWS_FUNCTION_NAME: ${{ secrets.AWS_LAMBDA_FUNCTION_NAME }}
         run: |
+          if [[ "$AWS_FUNCTION_NAME" == arn:aws:lambda:* ]]; then
+            FUNCTION_REF="$AWS_FUNCTION_NAME"
+          else
+            FUNCTION_REF="arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ steps.aws-account.outputs.account_id }}:function:$AWS_FUNCTION_NAME"
+          fi
+
           aws lambda update-function-code \
-            --function-name ${{ secrets.AWS_LAMBDA_FUNCTION_NAME }} \
+            --function-name "$FUNCTION_REF" \
             --zip-file fileb://lambda-package.zip \
             --publish
 
           aws lambda update-function-configuration \
-            --function-name ${{ secrets.AWS_LAMBDA_FUNCTION_NAME }} \
+            --function-name "$FUNCTION_REF" \
             --handler dist/index.handler \
             --runtime nodejs20.x
