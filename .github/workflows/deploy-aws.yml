@@ -49,3 +49,8 @@ jobs:
             --function-name ${{ secrets.AWS_LAMBDA_FUNCTION_NAME }} \
             --zip-file fileb://lambda-package.zip \
             --publish
+
+          aws lambda update-function-configuration \
+            --function-name ${{ secrets.AWS_LAMBDA_FUNCTION_NAME }} \
+            --handler dist/index.handler \
+            --runtime nodejs20.x
