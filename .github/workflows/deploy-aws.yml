@@ -41,49 +41,44 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-1
 
-      - name: Get AWS account id
-        id: aws-account
-        run: echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy to AWS Lambda
-        env:
-          AWS_FUNCTION_NAME: ${{ secrets.AWS_LAMBDA_FUNCTION_NAME }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+      - name: Deploy Lambda - listarVolatilidad
         run: |
-          echo "Function secret: $AWS_FUNCTION_NAME"
-          echo "Region secret: $AWS_REGION"
-
-          if [[ -z "$AWS_FUNCTION_NAME" || -z "$AWS_REGION" ]]; then
-            echo "ERROR: Define AWS_LAMBDA_FUNCTION_NAME y AWS_REGION en GitHub Secrets"
-            exit 1
-          fi
-
-          if [[ "$AWS_FUNCTION_NAME" == arn:aws:lambda:* ]]; then
-            FUNCTION_REF="$AWS_FUNCTION_NAME"
-          else
-            ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-            FUNCTION_REF="arn:aws:lambda:${AWS_REGION}:${ACCOUNT_ID}:function:${AWS_FUNCTION_NAME}"
-          fi
-
-          echo "Using Lambda ARN: $FUNCTION_REF"
-
-          aws lambda get-function --function-name "$FUNCTION_REF" >/dev/null || {
-            echo "ERROR: No existe esa función Lambda en esta cuenta: $FUNCTION_REF"
-            exit 254
-          }
+          FUNCTION="bif-fx-param-mantainaice-dev-listarVolatilidad"
+          echo "Deploying $FUNCTION..."
 
           aws lambda update-function-code \
-            --function-name "$FUNCTION_REF" \
+            --function-name "$FUNCTION" \
             --zip-file fileb://lambda-package.zip \
             --publish
 
-          echo "Waiting for function update to complete..."
-          aws lambda wait function-updated \
-            --function-name "$FUNCTION_REF"
+          echo "Waiting for $FUNCTION to finish updating..."
+          aws lambda wait function-updated --function-name "$FUNCTION"
 
           aws lambda update-function-configuration \
-            --function-name "$FUNCTION_REF" \
+            --function-name "$FUNCTION" \
             --handler dist/index.handler \
             --runtime nodejs20.x
+
+          echo "$FUNCTION deployed successfully"
+
+      - name: Deploy Lambda - actualizarVolatilidad
+        run: |
+          FUNCTION="bif-fx-param-mantainaice-dev-actualizarVolatilidad"
+          echo "Deploying $FUNCTION..."
+
+          aws lambda update-function-code \
+            --function-name "$FUNCTION" \
+            --zip-file fileb://lambda-package.zip \
+            --publish
+
+          echo "Waiting for $FUNCTION to finish updating..."
+          aws lambda wait function-updated --function-name "$FUNCTION"
+
+          aws lambda update-function-configuration \
+            --function-name "$FUNCTION" \
+            --handler dist/index.handler \
+            --runtime nodejs20.x
+
+          echo "$FUNCTION deployed successfully"
