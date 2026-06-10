@@ -1,5 +1,21 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
+
+// Mock del repositorio antes de importar el servicio
+import * as repo from '../../src/repositories/volatilidad.repository';
+
+const mockData = [
+  { id: '0004001', nombre: 'Volatilidad Activa',   pips: 100, estadoActual: true  },
+  { id: '0004002', nombre: 'Volatilidad Inactiva', pips: 200, estadoActual: false },
+];
+
+mock.method(repo, 'findAll', async () => [...mockData]);
+
+mock.method(repo, 'updateById', async (id: string, dto: { pips: number; estadoActual: boolean }) => {
+  const record = mockData.find((r) => r.id === id);
+  if (!record) return null;
+  return { ...record, pips: dto.pips, estadoActual: dto.estadoActual };
+});
 
 import * as service from '../../src/services/volatilidad.service';
 

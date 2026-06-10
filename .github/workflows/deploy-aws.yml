@@ -58,7 +58,7 @@ jobs:
 
           aws lambda update-function-configuration \
             --function-name "$FUNCTION" \
-            --handler dist/index.handler \
+            --handler dist/index.listarVolatilidad \
             --runtime nodejs20.x
 
           echo "$FUNCTION deployed successfully"
@@ -78,7 +78,7 @@ jobs:
 
           aws lambda update-function-configuration \
             --function-name "$FUNCTION" \
-            --handler dist/index.handler \
+            --handler dist/index.actualizarVolatilidad \
             --runtime nodejs20.x
 
           echo "$FUNCTION deployed successfully"

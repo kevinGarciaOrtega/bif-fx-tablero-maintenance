@@ -1,16 +1,15 @@
 import { volatilidadHandler } from './handlers/volatilidad';
 import { horarioMercadoHandler } from './handlers/horario-mercado';
 
-const mensaje: string = 'Proyecto Node.js + TypeScript funcionando';
-
-console.log(mensaje);
-
+// Handler genérico (fallback con routing por path)
 export const handler = async (event: { path?: string; [key: string]: unknown }) => {
-  if (event.path?.startsWith('/volatilidad')) {
+  const path = event.path ?? '';
+
+  if (path.includes('volatilidad')) {
     return volatilidadHandler(event as never);
   }
 
-  if (event.path?.startsWith('/horario-mercado') || event.path?.startsWith('/feriado')) {
+  if (path.includes('horario-mercado') || path.includes('feriado')) {
     return horarioMercadoHandler(event as never);
   }
 
@@ -19,3 +18,10 @@ export const handler = async (event: { path?: string; [key: string]: unknown }) 
     body: JSON.stringify({ success: false, message: 'Ruta no encontrada' }),
   };
 };
+
+// Handlers individuales exportados para cada Lambda dedicada
+export const listarVolatilidad = async (event: unknown) =>
+  volatilidadHandler(event as never);
+
+export const actualizarVolatilidad = async (event: unknown) =>
+  volatilidadHandler(event as never);
