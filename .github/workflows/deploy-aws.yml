@@ -50,12 +50,29 @@ jobs:
       - name: Deploy to AWS Lambda
         env:
           AWS_FUNCTION_NAME: ${{ secrets.AWS_LAMBDA_FUNCTION_NAME }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
+          echo "Function secret: $AWS_FUNCTION_NAME"
+          echo "Region secret: $AWS_REGION"
+
+          if [[ -z "$AWS_FUNCTION_NAME" || -z "$AWS_REGION" ]]; then
+            echo "ERROR: Define AWS_LAMBDA_FUNCTION_NAME y AWS_REGION en GitHub Secrets"
+            exit 1
+          fi
+
           if [[ "$AWS_FUNCTION_NAME" == arn:aws:lambda:* ]]; then
             FUNCTION_REF="$AWS_FUNCTION_NAME"
           else
-            FUNCTION_REF="arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ steps.aws-account.outputs.account_id }}:function:$AWS_FUNCTION_NAME"
+            ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+            FUNCTION_REF="arn:aws:lambda:${AWS_REGION}:${ACCOUNT_ID}:function:${AWS_FUNCTION_NAME}"
           fi
+
+          echo "Using Lambda ARN: $FUNCTION_REF"
+
+          aws lambda get-function --function-name "$FUNCTION_REF" >/dev/null || {
+            echo "ERROR: No existe esa función Lambda en esta cuenta: $FUNCTION_REF"
+            exit 254
+          }
 
           aws lambda update-function-code \
             --function-name "$FUNCTION_REF" \
