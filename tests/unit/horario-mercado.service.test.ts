@@ -30,3 +30,12 @@ test('deleteFeriado devuelve mensaje de eliminación', async () => {
 
   assert.deepEqual(result, { message: 'Feriado eliminado correctamente' });
 });
+
+test('getFeriadosByAnio devuelve todos los feriados activos del año solicitado', async () => {
+  const data = await service.getFeriadosByAnio(2026);
+
+  assert.equal(Array.isArray(data), true);
+  assert.equal(data.length, 2);
+  assert.equal(data.some((item) => item.fecha === '2026-01-01'), true);
+  assert.equal(data.some((item) => item.fecha === '2026-04-02'), true);
+});

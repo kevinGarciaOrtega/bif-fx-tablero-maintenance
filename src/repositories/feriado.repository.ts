@@ -9,13 +9,17 @@ const fallbackFeriados: Array<Feriado & { activo: boolean }> = [
   { codFeriado: 2, fecha: '2026-04-02', fechaFormateada: '02/04/2026', activo: true },
 ];
 
+const getFallbackFeriados = () => fallbackFeriados.map((item) => ({ ...item }));
+
+const matchesAnio = (fecha: string, anio: number) => fecha.slice(0, 4) === String(anio);
+
 const schema = process.env.DB_SCHEMA || 'dbo';
 const useDatabase = Boolean(process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER && process.env.DB_PASSWORD);
 
 export const findByAnio = async (anio: number): Promise<Feriado[]> => {
   if (!useDatabase) {
-    return fallbackFeriados
-      .filter((item) => item.activo && new Date(item.fecha).getFullYear() === anio)
+    return getFallbackFeriados()
+      .filter((item) => item.activo && matchesAnio(item.fecha, anio))
       .map(({ codFeriado, fecha, fechaFormateada }) => ({ codFeriado, fecha, fechaFormateada }));
   }
 
@@ -36,15 +40,15 @@ export const findByAnio = async (anio: number): Promise<Feriado[]> => {
     return result.rows;
   } catch (error) {
     console.warn('Falling back to in-memory feriado data:', error);
-    return fallbackFeriados
-      .filter((item) => item.activo && new Date(item.fecha).getFullYear() === anio)
+    return getFallbackFeriados()
+      .filter((item) => item.activo && matchesAnio(item.fecha, anio))
       .map(({ codFeriado, fecha, fechaFormateada }) => ({ codFeriado, fecha, fechaFormateada }));
   }
 };
 
 export const existsByFecha = async (fecha: string): Promise<boolean> => {
   if (!useDatabase) {
-    return fallbackFeriados.some((item) => item.activo && item.fecha === fecha);
+    return getFallbackFeriados().some((item) => item.activo && item.fecha === fecha);
   }
 
   try {
@@ -60,16 +64,18 @@ export const existsByFecha = async (fecha: string): Promise<boolean> => {
     return (result.rows[0]?.total ?? 0) > 0;
   } catch (error) {
     console.warn('Falling back to in-memory feriado existence check:', error);
-    return fallbackFeriados.some((item) => item.activo && item.fecha === fecha);
+    return getFallbackFeriados().some((item) => item.activo && item.fecha === fecha);
   }
 };
 
 export const create = async (fecha: string, regUsuario: number): Promise<Feriado> => {
   if (!useDatabase) {
-    const nextId = fallbackFeriados.reduce((max, item) => Math.max(max, item.codFeriado), 0) + 1;
-    const created = { codFeriado: nextId, fecha, fechaFormateada: fecha.split('-').reverse().join('/') };
-    fallbackFeriados.push({ ...created, activo: true });
-    return created;
+    const nextId = getFallbackFeriados().reduce((max, item) => Math.max(max, item.codFeriado), 0) + 1;
+    return {
+      codFeriado: nextId,
+      fecha,
+      fechaFormateada: fecha.split('-').reverse().join('/'),
+    };
   }
 
   try {
@@ -90,19 +96,15 @@ export const create = async (fecha: string, regUsuario: number): Promise<Feriado
     return result.rows[0];
   } catch (error) {
     console.warn('Falling back to in-memory feriado creation:', error);
-    const nextId = fallbackFeriados.reduce((max, item) => Math.max(max, item.codFeriado), 0) + 1;
+    const nextId = getFallbackFeriados().reduce((max, item) => Math.max(max, item.codFeriado), 0) + 1;
     const created = { codFeriado: nextId, fecha, fechaFormateada: fecha.split('-').reverse().join('/') };
-    fallbackFeriados.push({ ...created, activo: true });
     return created;
   }
 };
 
 export const deleteLogico = async (codFeriado: number): Promise<boolean> => {
   if (!useDatabase) {
-    const item = fallbackFeriados.find((entry) => entry.codFeriado === codFeriado && entry.activo);
-    if (!item) return false;
-    item.activo = false;
-    return true;
+    return getFallbackFeriados().some((entry) => entry.codFeriado === codFeriado && entry.activo);
   }
 
   try {
@@ -114,9 +116,6 @@ export const deleteLogico = async (codFeriado: number): Promise<boolean> => {
     return (result.rowCount ?? 0) > 0;
   } catch (error) {
     console.warn('Falling back to in-memory feriado deletion:', error);
-    const item = fallbackFeriados.find((entry) => entry.codFeriado === codFeriado && entry.activo);
-    if (!item) return false;
-    item.activo = false;
-    return true;
+    return getFallbackFeriados().some((entry) => entry.codFeriado === codFeriado && entry.activo);
   }
 };
