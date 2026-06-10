@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { handler } from './index';
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3001;
 
 const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url || '/', 'http://localhost');

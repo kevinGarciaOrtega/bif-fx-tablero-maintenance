@@ -13,15 +13,8 @@ type APIGatewayProxyResult = {
   body: string;
 };
 
-const getPathId = (event: APIGatewayProxyEvent): number | null => {
-  const rawId = event.pathParameters?.id ?? event.path?.match(/^\/volatilidad\/(\d+)$/i)?.[1];
-
-  if (!rawId) {
-    return null;
-  }
-
-  const id = Number.parseInt(rawId, 10);
-  return Number.isNaN(id) ? null : id;
+const getPathId = (event: APIGatewayProxyEvent): string | null => {
+  return event.pathParameters?.id ?? event.path?.match(/^\/volatilidad\/([^/]+)$/i)?.[1] ?? null;
 };
 
 export const volatilidadHandler = async (

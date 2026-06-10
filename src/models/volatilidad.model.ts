@@ -1,5 +1,5 @@
 export interface Volatilidad {
-  codCliente: number;
+  id: string;
   nombre: string;
   pips: number;
   estadoActual: boolean;

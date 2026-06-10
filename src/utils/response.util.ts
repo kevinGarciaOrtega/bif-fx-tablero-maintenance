@@ -3,6 +3,11 @@ export const ok = (data: unknown) => ({
   body: JSON.stringify({ success: true, data }),
 });
 
+export const created = (data: unknown) => ({
+  statusCode: 201,
+  body: JSON.stringify({ success: true, data }),
+});
+
 export const badRequest = (message: string) => ({
   statusCode: 400,
   body: JSON.stringify({ success: false, message }),

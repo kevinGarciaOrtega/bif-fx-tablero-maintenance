@@ -5,7 +5,7 @@ export const getAll = async () => {
   return await repo.findAll();
 };
 
-export const update = async (id: number, dto: UpdateVolatilidadDto) => {
+export const update = async (id: string, dto: UpdateVolatilidadDto) => {
   if (!Number.isInteger(dto.pips) || dto.pips <= 0) {
     throw new Error('PIPs debe ser un número entero mayor a 0');
   }

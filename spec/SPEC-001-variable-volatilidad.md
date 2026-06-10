@@ -1,6 +1,7 @@
-# SPEC — Módulo Variable Volatilidad
+# SPEC-001 — Módulo Variable Volatilidad
 ## Proyecto: bif-fx-tablero-maintenance
-## Versión: 1.0.0 | Fecha: 2026-06-09
+## Versión: 1.1.0 | Fecha: 2026-06-09
+## ✅ Actualizado con mapeo real de BD
 
 ---
 
@@ -11,19 +12,19 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Variable Volatilidad                                        │
-├──────┬───────────────────────────┬────────┬─────────────────┤
-│  N°  │  Nombre                   │  PIPs  │  Estado actual  │  Acciones │
-├──────┼───────────────────────────┼────────┼─────────────────┤
-│  1   │  Volatilidad Activa       │  100   │  [ ]            │  ✏️        │
-│  2   │  Volatilidad Inactiva     │  200   │  [✓]            │  ✏️        │
-└──────┴───────────────────────────┴────────┴─────────────────┘
+├──────┬───────────────────────────┬────────┬─────────────────┬───────────┤
+│  N°  │  Nombre                   │  PIPs  │  Estado actual  │ Acciones  │
+├──────┼───────────────────────────┼────────┼─────────────────┼───────────┤
+│  1   │  Volatilidad Activa       │  100   │  [ ]            │    ✏️     │
+│  2   │  Volatilidad Inactiva     │  200   │  [✓]            │    ✏️     │
+└──────┴───────────────────────────┴────────┴─────────────────┴───────────┘
 ```
 
 **Componentes:**
 - Tabla con columnas: N°, Nombre, PIPs, Estado actual (checkbox readonly), Acciones
 - Botón editar (ícono lápiz) por fila → abre modal
-- Sin botón de crear (datos precargados)
-- Sin paginación (pocos registros)
+- Sin botón crear (registros fijos)
+- Sin paginación (solo 2 registros)
 
 ### 1.2 Modal — Editar Volatilidad
 
@@ -42,36 +43,55 @@
 **Campos del modal:**
 | Campo | Tipo | Editable | Descripción |
 |---|---|---|---|
-| Estado | Text readonly | No | Nombre de la variable (ej: "Volatilidad Activa") |
-| PIPs | Number input | Sí | Valor numérico de PIPs |
-| Estado actual | Dropdown | Sí | Activo / Inactivo |
+| Estado | Text readonly | No | Nombre de la variable (`Campo`) |
+| PIPs | Number input | Sí | Valor numérico → campo `Key3` |
+| Estado actual | Dropdown | Sí | Activo=1 / Inactivo=0 → campo `Marcado` |
 
 **Comportamiento:**
-- Al abrir modal → carga datos actuales del registro
-- Dropdown Estado actual → valores: `Activo` / `Inactivo`
-- Al guardar → PUT al endpoint → cierra modal → refresca tabla
+- Al abrir modal → carga datos del registro seleccionado
+- Dropdown: `Activo` (`Marcado=1`) / `Inactivo` (`Marcado=0`)
+- Al guardar → PUT → cierra modal → refresca tabla
 - Al cerrar [X] → descarta cambios
 
 ---
 
 ## 2. REQUIREMENTS
 
-### 2.1 Mapeo de Datos
-La pantalla Variable Volatilidad corresponde a la tabla **`dbo.tbl_mcliente`**:
+### 2.1 Mapeo Real de BD ✅
 
-| Campo UI | Campo DB | Tipo DB | Notas |
-|---|---|---|---|
-| N° | correlativo | — | Generado en frontend (índice) |
-| Nombre | `MtEstado` | VARCHAR(7) | Nombre descriptivo del estado |
-| PIPs | `Pips` | INTEGER | Valor de PIPs |
-| Estado actual | `FlagCalculoMora` | BOOLEAN | true=Activo, false=Inactivo |
+#### Tabla: `dbo.tbl_mmultitabla` WHERE `CodGrupo = '0004'`
 
-> ⚠️ Nota: Revisar si existe tabla específica para Volatilidad. De acuerdo a los datos migrados, los registros de volatilidad están almacenados en `tbl_mcliente` filtrando por un criterio específico, o en `tbl_mMultitabla` con un CodGrupo determinado. **Confirmar con el equipo antes de implementar.**
+| Campo UI | Campo DB | Valor real |
+|---|---|---|
+| N° | correlativo | — generado en frontend |
+| Nombre | `Campo` | "Volatilidad Activa" / "Volatilidad Inactiva" |
+| PIPs | `Key3` | `100` / `200` |
+| Estado actual (checkbox) | `Marcado` | `1` = activo, `0` = inactivo |
+
+**Registros reales:**
+```
+CodMultitabla | Campo               | Key3 | Marcado | CodGrupo
+0004001       | Volatilidad Activa  | 100  |    1    | 0004
+0004002       | Volatilidad Inactiva| 200  |    0    | 0004
+```
 
 ### 2.2 Endpoints Requeridos
 
-#### GET /volatilidad
-Obtiene lista de variables de volatilidad.
+---
+
+**GET /volatilidad**
+
+Query real:
+```sql
+SELECT
+  "CodMultitabla"        AS id,
+  "Campo"                AS nombre,
+  "Key3"::INTEGER        AS pips,
+  CASE WHEN "Marcado" = 1 THEN true ELSE false END AS "estadoActual"
+FROM dbo.tbl_mmultitabla
+WHERE "CodGrupo" = '0004'
+ORDER BY "CodMultitabla";
+```
 
 **Response 200:**
 ```json
@@ -79,23 +99,41 @@ Obtiene lista de variables de volatilidad.
   "success": true,
   "data": [
     {
-      "codCliente": 1,
+      "id": "0004001",
       "nombre": "Volatilidad Activa",
       "pips": 100,
-      "estadoActual": false
+      "estadoActual": true
     },
     {
-      "codCliente": 2,
+      "id": "0004002",
       "nombre": "Volatilidad Inactiva",
       "pips": 200,
-      "estadoActual": true
+      "estadoActual": false
     }
   ]
 }
 ```
 
-#### PUT /volatilidad/{id}
-Actualiza PIPs y estado de una variable.
+---
+
+**PUT /volatilidad/{id}**
+
+Query real:
+```sql
+UPDATE dbo.tbl_mmultitabla
+SET
+  "Key3"       = $1::VARCHAR,
+  "Marcado"    = $2,
+  "ModFecha"   = NOW(),
+  "ModUsuario" = $3
+WHERE "CodMultitabla" = $4
+  AND "CodGrupo" = '0004'
+RETURNING
+  "CodMultitabla"                                    AS id,
+  "Campo"                                            AS nombre,
+  "Key3"::INTEGER                                    AS pips,
+  CASE WHEN "Marcado" = 1 THEN true ELSE false END   AS "estadoActual";
+```
 
 **Request Body:**
 ```json
@@ -114,7 +152,7 @@ Actualiza PIPs y estado de una variable.
 {
   "success": true,
   "data": {
-    "codCliente": 1,
+    "id": "0004001",
     "nombre": "Volatilidad Activa",
     "pips": 150,
     "estadoActual": true
@@ -140,14 +178,14 @@ Actualiza PIPs y estado de una variable.
 
 ### 2.3 Reglas de Negocio
 - Solo se permite **editar**, no crear ni eliminar registros
-- El campo **Nombre/Estado** es de solo lectura (no editable)
-- Solo un registro puede tener `estadoActual = true` a la vez *(confirmar con negocio)*
-- El cambio de estado debe registrarse en `tbl_pAuditoria`
+- El campo **Nombre** es de solo lectura
+- `Marcado = 1` → Estado actual activo (checkbox marcado)
+- `Marcado = 0` → Estado actual inactivo (checkbox vacío)
+- Todas las modificaciones generan registro en `tbl_pAuditoria`
 
 ### 2.4 Seguridad
-- Endpoint protegido con API Key o JWT (Bearer token)
-- Solo usuarios con rol autorizado pueden editar
-- Todas las modificaciones generan registro de auditoría
+- Bearer Token / API Key requerido
+- Solo usuarios autorizados pueden editar
 
 ---
 
@@ -157,7 +195,7 @@ Actualiza PIPs y estado de una variable.
 **Archivo:** `src/models/volatilidad.model.ts`
 ```typescript
 export interface Volatilidad {
-  codCliente: number;
+  id: string;
   nombre: string;
   pips: number;
   estadoActual: boolean;
@@ -179,39 +217,41 @@ import pool from '../config/database';
 import { Volatilidad, UpdateVolatilidadDto } from '../models/volatilidad.model';
 
 export const findAll = async (): Promise<Volatilidad[]> => {
-  const query = `
-    SELECT 
-      "CodCliente"      AS "codCliente",
-      "MtEstado"        AS nombre,
-      "Pips"            AS pips,
-      "FlagCalculoMora" AS "estadoActual"
-    FROM dbo.tbl_mcliente
-    ORDER BY "CodCliente"
-  `;
-  const result = await pool.query(query);
-  return result.rows;
+  const { rows } = await pool.query(`
+    SELECT
+      "CodMultitabla"                                   AS id,
+      "Campo"                                           AS nombre,
+      "Key3"::INTEGER                                   AS pips,
+      CASE WHEN "Marcado" = 1 THEN true ELSE false END  AS "estadoActual"
+    FROM dbo.tbl_mmultitabla
+    WHERE "CodGrupo" = '0004'
+    ORDER BY "CodMultitabla"
+  `);
+  return rows;
 };
 
 export const updateById = async (
-  id: number,
-  dto: UpdateVolatilidadDto
+  id: string,
+  dto: UpdateVolatilidadDto,
+  modUsuario: number
 ): Promise<Volatilidad | null> => {
-  const query = `
-    UPDATE dbo.tbl_mcliente
-    SET 
-      "Pips"            = $1,
-      "FlagCalculoMora" = $2,
-      "ModFecha"        = NOW(),
-      "ModUsuario"      = $3
-    WHERE "CodCliente" = $4
-    RETURNING 
-      "CodCliente"      AS "codCliente",
-      "MtEstado"        AS nombre,
-      "Pips"            AS pips,
-      "FlagCalculoMora" AS "estadoActual"
-  `;
-  const result = await pool.query(query, [dto.pips, dto.estadoActual, 0, id]);
-  return result.rows[0] || null;
+  const marcado = dto.estadoActual ? 1 : 0;
+  const { rows } = await pool.query(`
+    UPDATE dbo.tbl_mmultitabla
+    SET
+      "Key3"       = $1::VARCHAR,
+      "Marcado"    = $2,
+      "ModFecha"   = NOW(),
+      "ModUsuario" = $3
+    WHERE "CodMultitabla" = $4
+      AND "CodGrupo" = '0004'
+    RETURNING
+      "CodMultitabla"                                   AS id,
+      "Campo"                                           AS nombre,
+      "Key3"::INTEGER                                   AS pips,
+      CASE WHEN "Marcado" = 1 THEN true ELSE false END  AS "estadoActual"
+  `, [String(dto.pips), marcado, modUsuario, id]);
+  return rows[0] || null;
 };
 ```
 **Estimado:** 1h
@@ -224,20 +264,19 @@ export const updateById = async (
 import * as repo from '../repositories/volatilidad.repository';
 import { UpdateVolatilidadDto } from '../models/volatilidad.model';
 
-export const getAll = async () => {
-  return await repo.findAll();
-};
+export const getAll = () => repo.findAll();
 
-export const update = async (id: number, dto: UpdateVolatilidadDto) => {
-  // Validaciones
-  if (!dto.pips || dto.pips <= 0) {
-    throw new Error('PIPs debe ser un número entero mayor a 0');
-  }
-  if (typeof dto.estadoActual !== 'boolean') {
+export const update = async (
+  id: string,
+  dto: UpdateVolatilidadDto,
+  modUsuario: number
+) => {
+  if (!dto.pips || dto.pips <= 0 || dto.pips > 99999)
+    throw new Error('PIPs debe ser un número entero entre 1 y 99999');
+  if (typeof dto.estadoActual !== 'boolean')
     throw new Error('Estado actual debe ser verdadero o falso');
-  }
 
-  const updated = await repo.updateById(id, dto);
+  const updated = await repo.updateById(id, dto, modUsuario);
   if (!updated) throw new Error('NOT_FOUND');
   return updated;
 };
@@ -256,30 +295,30 @@ import { ok, notFound, badRequest, serverError } from '../utils/response.util';
 export const volatilidadHandler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
-  const { httpMethod, pathParameters, body } = event;
+  const { httpMethod, path, pathParameters, body } = event;
 
   try {
     // GET /volatilidad
-    if (httpMethod === 'GET' && !pathParameters?.id) {
-      const data = await service.getAll();
-      return ok(data);
+    if (httpMethod === 'GET' && path === '/volatilidad') {
+      return ok(await service.getAll());
     }
 
     // PUT /volatilidad/{id}
     if (httpMethod === 'PUT' && pathParameters?.id) {
-      const id = parseInt(pathParameters.id);
       const dto = JSON.parse(body || '{}');
-      const data = await service.update(id, dto);
-      return ok(data);
+      const modUsuario = 0; // TODO: extraer del token JWT
+      return ok(await service.update(pathParameters.id, dto, modUsuario));
     }
 
     return badRequest('Método no permitido');
 
   } catch (error: any) {
-    if (error.message === 'NOT_FOUND') return notFound('Variable de volatilidad no encontrada');
-    if (error.message.includes('PIPs') || error.message.includes('Estado')) {
+    if (error.message === 'NOT_FOUND')
+      return notFound('Variable de volatilidad no encontrada');
+    if (error.message.includes('PIPs') || error.message.includes('Estado'))
       return badRequest(error.message);
-    }
+
+    console.error('Error:', error);
     return serverError('Error interno del servidor');
   }
 };
@@ -290,54 +329,36 @@ export const volatilidadHandler = async (
 
 ### TASK-005 — Registrar ruta en index.ts
 ```typescript
-// En src/index.ts agregar:
 import { volatilidadHandler } from './handlers/volatilidad';
 
-// En el router:
 if (path.startsWith('/volatilidad')) return volatilidadHandler(event);
 ```
 **Estimado:** 0.25h
 
 ---
 
-### TASK-006 — Configurar API Gateway
-```bash
-# Crear recurso /volatilidad en API Gateway
-aws apigateway create-resource \
-  --rest-api-id {API_ID} \
-  --parent-id {ROOT_ID} \
-  --path-part "volatilidad" \
-  --region us-west-2
-
-# Métodos: GET, PUT (con proxy al Lambda)
-```
-**Estimado:** 1h
-
----
-
-### TASK-007 — Tests unitarios
+### TASK-006 — Tests Unitarios
 **Archivo:** `tests/unit/volatilidad.service.test.ts`
 
 Casos a probar:
-- ✅ getAll → retorna lista de volatilidades
-- ✅ update → actualiza correctamente PIPs y estado
-- ❌ update → error si PIPs <= 0
-- ❌ update → error si id no existe
-- ❌ update → error si estadoActual no es boolean
+- ✅ getAll → retorna 2 registros con CodGrupo=0004
+- ✅ update → actualiza Key3 y Marcado correctamente
+- ❌ update → PIPs <= 0
+- ❌ update → PIPs > 99999
+- ❌ update → estadoActual no es boolean
+- ❌ update → id no existe en CodGrupo=0004
 
 **Estimado:** 1.5h
 
 ---
 
-### TASK-008 — Auditoría
-Registrar en `tbl_pAuditoria` cada actualización:
+### TASK-007 — Auditoría
 ```typescript
-// Agregar en service después del update:
+// Actualización volatilidad → código 'VOL001'
 await auditoriaRepo.registrar({
-  ipCliente: event.requestContext.identity.sourceIp,
   codTransaccion: 'VOL001',
   descripcion: `Actualización Variable Volatilidad ID: ${id}`,
-  regUsuario: usuarioId,
+  regUsuario: modUsuario,
   regFecha: new Date()
 });
 ```
@@ -354,16 +375,18 @@ await auditoriaRepo.registrar({
 | TASK-003 | Service | 1h |
 | TASK-004 | Handler | 1h |
 | TASK-005 | Registro de ruta | 0.25h |
-| TASK-006 | API Gateway | 1h |
-| TASK-007 | Tests unitarios | 1.5h |
-| TASK-008 | Auditoría | 1h |
-| **TOTAL** | | **7.25h** |
+| TASK-006 | Tests unitarios | 1.5h |
+| TASK-007 | Auditoría | 1h |
+| **TOTAL** | | **6.25h** |
 
 ---
 
-## 5. DEPENDENCIAS Y PREGUNTAS ABIERTAS
+## 5. NOTAS FINALES DE BD
 
-1. ⚠️ **Confirmar tabla origen**: ¿Los registros de volatilidad vienen de `tbl_mcliente` o de `tbl_mMultitabla`? Revisar con el equipo de negocio.
-2. ⚠️ **Regla de unicidad**: ¿Solo puede haber un registro activo a la vez?
-3. ⚠️ **Autenticación**: ¿API Key o JWT? ¿Qué sistema de auth usa el frontend React?
-4. ⚠️ **CodUsuario auditoría**: ¿Cómo se obtiene el usuario logueado desde el token?
+| Dato | Valor real confirmado |
+|---|---|
+| Tabla | `dbo.tbl_mmultitabla` WHERE `CodGrupo = '0004'` |
+| Nombre variable | campo `Campo` |
+| PIPs | campo `Key3` (VARCHAR → castear a INTEGER) |
+| Estado actual (checkbox) | campo `Marcado` (`1`=activo, `0`=inactivo) |
+| Solo edición | No se crean ni eliminan registros |
