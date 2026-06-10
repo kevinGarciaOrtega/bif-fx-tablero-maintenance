@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "test": "node --test --require ts-node/register tests/unit/volatilidad.service.test.ts tests/unit/volatilidad.handler.test.ts",
+    "test": "node --test --require ts-node/register tests/unit/volatilidad.service.test.ts tests/unit/volatilidad.handler.test.ts tests/unit/horario-mercado.service.test.ts",
     "start": "ts-node src/server.ts",
     "build": "tsc -p tsconfig.json",
     "deploy:api": "bash scripts/deploy-api-gateway.sh"
@@ -18,5 +18,9 @@
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@types/pg": "^8.20.0",
+    "pg": "^8.21.0"
   }
 }
